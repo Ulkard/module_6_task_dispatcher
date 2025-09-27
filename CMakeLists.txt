@@ -12,6 +12,8 @@ execute_process(
     RESULT_VARIABLE GIT_COMMAND_RESULT
 )
 
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 find_package(GTest REQUIRED)
 
 include_directories(
