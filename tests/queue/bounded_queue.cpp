@@ -1,73 +1,84 @@
-#include <gtest/gtest.h>
-#include <ostream>
+#include "queue/bounded_queue.hpp" / Include your header file
+#include "test_helpers.hpp"
 
-#include "../test_helpers.hpp"
-#include "print"
-#include "queue/bounded_queue.hpp"
-
-using namespace std::chrono_literals;
 using namespace dispatcher::queue;
+using namespace std::chrono_literals;
 
-TEST(BoundedQueue, singleWriter) {
-    /* SyncedQueue<int> queue(100);
-
-    Producer tx{queue, 10'000};  // Создаём одного производителя, который добавит в очередь 10'000 элементов
-    CountedConsumer rx{queue};  // Создаём одного потребителя, который будет обрабатывать добавленные в очередь элементы
-
-    // Ждём, пока производитель добавит все задачи в очередь, и останавливаем обработку новых задач
-    tx.Wait();
-    queue.StopAcceptPushes();
-
-    // Ждём, пока CountedConsumer обработает все задачи
-    rx.Wait();
-
-    // Проверяем, что Producer добавил все свои задачи в очередь
-    if (tx.Size() != 0) {
-        std::println("Ошибка! Производитель отправил не все задачи на исполнение");
-    }
-
-    // Проверяем, что CountedConsumer обработал все задачи
-    if (rx.Size() != 10'000) {
-        std::println("Ошибка! Потребитель обработал не все задачи");
-    } */
+TEST(BoundedQueue, SingleThreadedPushPop) {
+    BoundedQueue queue(2);
+    testSingleThreadPushPop(queue);
 }
 
-TEST(BoundedQueue, multipleWriter) {
-    BoundedQueue q(10);
+TEST(BoundedQueue, TryPopEmptyQueue) {
+    BoundedQueue queue(3);
+    testPopEmptyQueue(queue);
+}
 
-    //
-    // Создаём три потока, добавляющие данные в очередь
-    //
-    std::jthread t1{[&q] {
-        for (auto _ : std::views::iota(0, 1'000)) {
-            std::this_thread::sleep_for(1ms);
-            q.push({});
-        }
-    }};
-    std::jthread t2{[&q] {
-        for (auto _ : std::views::iota(0, 1'000)) {
-            std::this_thread::sleep_for(1ms);
-            q.push({});
-        }
-    }};
-    std::jthread t3{[&q] {
-        for (auto _ : std::views::iota(0, 1'000)) {
-            std::this_thread::sleep_for(1ms);
-            q.push({});
-        }
-    }};
+TEST(BoundedQueue, MultipleProducers) {
+    BoundedQueue queue(100);
+    const int num_tasks = 100;
+    const int num_producers = 4;
 
-    //
-    // Создаём 1 поток, читающий данные из очереди
-    //
-    std::jthread t4{[&q] {
-        for (auto _ : std::views::iota(0, 100)) {
-            if (auto res = q.try_pop(); res) {
-                std::println("Valued.");
-            } else {
-                std::println("Queue is empty!");
-            }
-            std::this_thread::sleep_for(1ms);
-        }
-    }};
+    testMultipleProducers(queue, num_tasks, num_producers);
+}
+
+TEST(BoundedQueue, MultipleConsumers) {
+    BoundedQueue queue(500);
+    const int num_tasks = 500;
+    const int num_consumers = 5;
+
+    testMultipleConsumers(queue, num_tasks, num_consumers);
+}
+
+TEST(BoundedQueue, ProducerConsumer) {
+    BoundedQueue queue(10);
+    const int num_tasks_per_producer = 250;
+    const int num_producers = 2;
+    const int num_consumers = 2;
+
+    testProducerConsumer(queue, num_tasks_per_producer, num_producers, num_consumers);
+}
+
+TEST(BoundedQueue, FIFOOrder) {
+    BoundedQueue queue(5);
+    int num_tasks = 5;
+
+    testFIFOOrder(queue, num_tasks);
+}
+
+TEST(BoundedQueue, PushBlocksWhenFull) {
+    BoundedQueue queue(2);
+
+    std::atomic<int> counter{0};
+
+    // Fill the queue
+    queue.push([&counter]() { counter.fetch_add(1); });
+    queue.push([&counter]() { counter.fetch_add(1); });
+
+    std::atomic<bool> push_completed{false};
+    std::atomic<bool> push_started{false};
+
+    std::thread pusher([&]() {
+        push_started.store(true);
+        queue.push([&counter]() { counter.fetch_add(1); });
+        push_completed.store(true);
+    });
+
+    // Wait for pusher thread to start and try to push
+    while (!push_started.load()) {
+        std::this_thread::yield();
+    }
+    std::this_thread::sleep_for(50ms);
+
+    // Push shouldn't have completed yet because queue is full
+    EXPECT_FALSE(push_completed.load());
+
+    // Make space by popping and executing
+    auto task = queue.try_pop();
+    EXPECT_TRUE(task.has_value());
+    (*task)();
+
+    // Now push should complete
+    pusher.join();
+    EXPECT_TRUE(push_completed.load());
 }

@@ -7,8 +7,6 @@
 
 namespace dispatcher::queue {
 
-UnboundedQueue::UnboundedQueue() {};
-
 void UnboundedQueue::push(Task task) {
     std::lock_guard lock(mutex_);
     q_.push(std::move(task));

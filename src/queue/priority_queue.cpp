@@ -16,7 +16,7 @@ PriorityQueue::PriorityQueue(QueueOptions q_opts_normal, QueueOptions q_opts_hig
 std::unique_ptr<IQueue> PriorityQueue::makeQueue(QueueOptions opts) {
     std::unique_ptr<IQueue> result;
     if (opts.bounded) {
-        if (opts.capacity.has_value()) {
+        if (!opts.capacity.has_value()) {
             throw std::invalid_argument("no way to create a bounded queue without capacity");
         }
         result = std::make_unique<BoundedQueue>(opts.capacity.value());
@@ -27,7 +27,7 @@ std::unique_ptr<IQueue> PriorityQueue::makeQueue(QueueOptions opts) {
 }
 
 void PriorityQueue::push(TaskPriority priority, Task task) {
-    if (active_.load(std::memory_order_relaxed)) {
+    if (!active_.load(std::memory_order_acquire)) {
         return;
     }
     switch (priority) {
@@ -49,15 +49,18 @@ std::optional<Task> PriorityQueue::pop() {
     std::unique_lock lock(mutex_);
     std::optional<Task> result;
 
-    not_empty_.wait(lock, [this, &result] {
-        return (result = q_high_->try_pop()) || (result = q_normal_->try_pop()) ||
-               !active_.load(std::memory_order_relaxed);
+    not_empty_.wait(lock, [&] {
+        return (result = q_high_->try_pop()).has_value() || (result = q_normal_->try_pop()).has_value() ||
+               !active_.load(std::memory_order_acquire);
     });
 
     return result;
 }
 
-void PriorityQueue::shutdown() { active_.store(false, std::memory_order_relaxed); }
+void PriorityQueue::shutdown() {
+    active_.store(false, std::memory_order_release);
+    not_empty_.notify_all();
+}
 
 PriorityQueue::~PriorityQueue() { shutdown(); }
 

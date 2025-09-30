@@ -8,8 +8,8 @@ namespace dispatcher::queue {
 class UnboundedQueue : public IQueue {
     // здесь ваш код
 public:
-    explicit UnboundedQueue();
-    ~UnboundedQueue() override;
+    UnboundedQueue() = default;
+    ~UnboundedQueue() override = default;
 
     void push(Task task) override;
     std::optional<Task> try_pop() override;

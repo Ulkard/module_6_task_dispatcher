@@ -33,7 +33,7 @@ private:
 
     std::mutex mutex_;
     std::condition_variable not_empty_;
-    std::atomic<bool> active_;
+    std::atomic<bool> active_ = true;
 
     std::unique_ptr<IQueue> makeQueue(QueueOptions opts);
 };
