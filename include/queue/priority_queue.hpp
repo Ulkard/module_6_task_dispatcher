@@ -1,15 +1,13 @@
 #pragma once
 #include "queue/bounded_queue.hpp"
+#include "queue/queue.hpp"
 #include "queue/unbounded_queue.hpp"
 #include "types.hpp"
 
 #include <atomic>
-#include <limits>
-#include <map>
 #include <memory>
 #include <mutex>
 #include <optional>
-#include <stdexcept>
 #include <unordered_map>
 
 namespace dispatcher::queue {
@@ -17,16 +15,26 @@ namespace dispatcher::queue {
 class PriorityQueue {
     // здесь ваш код
 public:
-    // explicit PriorityQueue(?);
+    explicit PriorityQueue(QueueOptions q_opts_normal, QueueOptions q_opts_high);
 
-    void push(TaskPriority priority, std::function<void()> task);
+    void push(TaskPriority priority, Task task);
     // block on pop until shutdown is called
     // after that return std::nullopt on empty queue
-    std::optional<std::function<void()>> pop();
+    std::optional<Task> pop();
 
     void shutdown();
 
     ~PriorityQueue();
+
+private:
+    std::unique_ptr<IQueue> q_normal_;
+    std::unique_ptr<IQueue> q_high_;
+
+    std::mutex mutex_;
+    std::condition_variable not_empty_;
+    std::atomic<bool> active_ = true;
+
+    std::unique_ptr<IQueue> makeQueue(QueueOptions opts);
 };
 
 }  // namespace dispatcher::queue

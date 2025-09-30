@@ -13,16 +13,15 @@ public:
     explicit BoundedQueue(int capacity);
     ~BoundedQueue() override;
 
-    void push(std::function<void()> task) override;
-    std::optional<std::function<void()>> try_pop() override;
+    void push(Task task) override;
+    std::optional<Task> try_pop() override;
 
 private:
-    std::queue<std::function<void()>, std::list<std::function<void()>>> q_;
+    std::queue<Task> q_;
     std::mutex mutex_;
     std::condition_variable not_full_;
 
     size_t capacity_;
-    bool active_ = true;
 };
 
 }  // namespace dispatcher::queue
