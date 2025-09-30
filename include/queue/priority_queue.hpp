@@ -8,6 +8,7 @@
 #include <memory>
 #include <mutex>
 #include <optional>
+#include <stop_token>
 #include <unordered_map>
 
 namespace dispatcher::queue {
@@ -32,7 +33,7 @@ private:
 
     std::mutex mutex_;
     std::condition_variable not_empty_;
-    std::atomic<bool> active_ = true;
+    std::atomic<bool> active_;
 
     std::unique_ptr<IQueue> makeQueue(QueueOptions opts);
 };

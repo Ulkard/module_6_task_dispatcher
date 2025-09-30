@@ -10,10 +10,8 @@
 
 namespace dispatcher::queue {
 
-PriorityQueue::PriorityQueue(QueueOptions q_opts_normal, QueueOptions q_opts_high) {
-    q_normal_ = makeQueue(q_opts_normal);
-    q_high_ = makeQueue(q_opts_high);
-}
+PriorityQueue::PriorityQueue(QueueOptions q_opts_normal, QueueOptions q_opts_high)
+    : q_normal_(makeQueue(q_opts_normal)), q_high_(makeQueue(q_opts_high)) {}
 
 std::unique_ptr<IQueue> PriorityQueue::makeQueue(QueueOptions opts) {
     std::unique_ptr<IQueue> result;
