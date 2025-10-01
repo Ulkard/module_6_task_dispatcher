@@ -92,28 +92,6 @@ TEST(TaskDispatcher, MixedPriorityTasks) {
     EXPECT_EQ(high_priority_completed.load() + normal_priority_completed.load(), 10);
 }
 
-// Test exception handling in tasks
-TEST(TaskDispatcher, ExceptionHandling) {
-    std::atomic<bool> exception_caught{false};
-    TaskDispatcher dispatcher(2);
-
-    // This test verifies that exceptions in tasks don't crash the dispatcher
-    dispatcher.schedule(TaskPriority::Normal, [&] {
-        try {
-            throw std::runtime_error("Test exception");
-        } catch (...) {
-            exception_caught.store(true);
-        }
-    });
-
-    auto start = std::chrono::steady_clock::now();
-    while (!exception_caught.load() && std::chrono::steady_clock::now() - start < 2s) {
-        std::this_thread::sleep_for(10ms);
-    }
-
-    EXPECT_TRUE(exception_caught.load());
-}
-
 TEST(TaskDispatcher, ThreadPoolSize) {
     constexpr size_t THREAD_COUNT = 3;
     std::atomic<int> concurrent_tasks{0};
@@ -168,4 +146,25 @@ TEST(TaskDispatcher, DestructionWithRunningTasks) {
     dispatcher_destroyed.store(true);
     EXPECT_TRUE(dispatcher_destroyed.load());
     EXPECT_TRUE(task_started.load());
+}
+
+TEST(TaskDispatcher, ExceptionHandling) {
+    std::atomic<bool> exception_caught{false};
+    TaskDispatcher dispatcher(2);
+
+    // check that exceptions in tasks won't crash the dispatcher
+    dispatcher.schedule(TaskPriority::Normal, [&] {
+        try {
+            throw std::runtime_error("Test exception");
+        } catch (...) {
+            exception_caught.store(true);
+        }
+    });
+
+    auto start = std::chrono::steady_clock::now();
+    while (!exception_caught.load() && std::chrono::steady_clock::now() - start < 2s) {
+        std::this_thread::sleep_for(10ms);
+    }
+
+    EXPECT_TRUE(exception_caught.load());
 }

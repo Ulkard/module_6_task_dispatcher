@@ -1,4 +1,5 @@
 #include "thread_pool/thread_pool.hpp"
+#include "logger.hpp"
 #include "queue/priority_queue.hpp"
 #include <stop_token>
 #include <thread>
@@ -25,7 +26,13 @@ void ThreadPool::worker(std::stop_token stoken) {
         std::optional<Task> task = queue_->pop();
 
         if (task.has_value()) {
-            task.value()();
+            try {
+                task.value()();
+            } catch (const std::exception &e) {
+                Logger::Get().Log("exception caught during task execution: " + std::string(e.what()));
+            } catch (...) {
+                Logger::Get().Log("unknown exception caught during task execution");
+            }
         } else {
             std::this_thread::sleep_for(10ms);
         }
