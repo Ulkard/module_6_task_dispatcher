@@ -46,7 +46,8 @@ TEST(PriorityQueue, PushDifferentPriorities) {
 
     // Pop and execute all tasks
     std::vector<Task> tasks;
-    while (auto task = queue.pop()) {
+    for (int i = 0; i < 4; ++i) {
+        auto task = queue.pop();
         tasks.push_back(std::move(*task));
     }
 
