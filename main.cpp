@@ -8,6 +8,7 @@
 #include "task_dispatcher.hpp"
 
 using namespace dispatcher;
+using namespace std::chrono_literals;
 
 int main() {
     TaskDispatcher td(std::thread::hardware_concurrency());
@@ -23,4 +24,5 @@ int main() {
             }
         });
     }
+    std::this_thread::sleep_for(100ms);
 }

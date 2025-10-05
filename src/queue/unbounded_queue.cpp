@@ -7,6 +7,21 @@
 
 namespace dispatcher::queue {
 
-// здесь ваш код
+void UnboundedQueue::push(Task task) {
+    std::lock_guard lock(mutex_);
+    q_.push(std::move(task));
+}
 
-} // namespace dispatcher::queue
+std::optional<Task> UnboundedQueue::try_pop() {
+    std::lock_guard lock(mutex_);
+
+    if (q_.empty()) {
+        return std::nullopt;
+    }
+
+    Task result = std::move(q_.front());
+    q_.pop();
+    return result;
+}
+
+}  // namespace dispatcher::queue
