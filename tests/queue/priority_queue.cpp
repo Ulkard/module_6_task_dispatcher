@@ -185,7 +185,7 @@ TEST(PriorityQueue, DestructorCallsShutdown) {
 }
 
 TEST(PriorityQueue, BoundedQueues) {
-    PriorityQueue queue = makeQueue(5, 3);
+    PriorityQueue queue = makeQueue(3, 5);
 
     std::atomic<int> normal_executed{0};
     std::atomic<int> high_executed{0};
@@ -212,7 +212,7 @@ TEST(PriorityQueue, BoundedQueues) {
 
 // Test mixed bounded/unbounded queues
 TEST(PriorityQueue, MixedQueueTypes) {
-    PriorityQueue queue = makeQueue(10, 0);
+    PriorityQueue queue = makeQueue(0, 10);
 
     std::atomic<int> normal_executed{0};
     std::atomic<int> high_executed{0};

@@ -5,18 +5,24 @@
 #include "types.hpp"
 
 #include <atomic>
+#include <concepts>
+#include <cstddef>
 #include <memory>
 #include <mutex>
 #include <optional>
 #include <stop_token>
 #include <unordered_map>
+#include <vector>
 
 namespace dispatcher::queue {
 
 class PriorityQueue {
-    // здесь ваш код
 public:
-    explicit PriorityQueue(QueueOptions q_opts_normal, QueueOptions q_opts_high);
+    template <std::same_as<QueueOptions>... QueueOptionsTs>
+    PriorityQueue(QueueOptionsTs... args) {
+        queues_.reserve(sizeof...(args));
+        (queues_.push_back(makeQueue(args)), ...);
+    }
 
     void push(TaskPriority priority, Task task);
     // block on pop until shutdown is called
@@ -28,14 +34,14 @@ public:
     ~PriorityQueue();
 
 private:
-    std::unique_ptr<IQueue> q_normal_;
-    std::unique_ptr<IQueue> q_high_;
+    using QueuePtr = std::unique_ptr<IQueue>;
+    std::vector<QueuePtr> queues_;
 
     std::mutex mutex_;
     std::condition_variable not_empty_;
     std::atomic<bool> active_ = true;
 
-    std::unique_ptr<IQueue> makeQueue(QueueOptions opts);
+    QueuePtr makeQueue(QueueOptions opts);
 };
 
 }  // namespace dispatcher::queue

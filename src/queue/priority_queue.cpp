@@ -3,6 +3,7 @@
 #include "types.hpp"
 #include <atomic>
 #include <cassert>
+#include <cstddef>
 #include <format>
 #include <memory>
 #include <optional>
@@ -10,11 +11,8 @@
 
 namespace dispatcher::queue {
 
-PriorityQueue::PriorityQueue(QueueOptions q_opts_normal, QueueOptions q_opts_high)
-    : q_normal_(makeQueue(q_opts_normal)), q_high_(makeQueue(q_opts_high)) {}
-
-std::unique_ptr<IQueue> PriorityQueue::makeQueue(QueueOptions opts) {
-    std::unique_ptr<IQueue> result;
+PriorityQueue::QueuePtr PriorityQueue::makeQueue(QueueOptions opts) {
+    QueuePtr result;
     if (opts.bounded) {
         if (!opts.capacity.has_value()) {
             throw std::invalid_argument("no way to create a bounded queue without capacity");
@@ -30,16 +28,11 @@ void PriorityQueue::push(TaskPriority priority, Task task) {
     if (!active_.load(std::memory_order_acquire)) {
         return;
     }
-    switch (priority) {
-    case TaskPriority::High:
-        q_high_->push(std::move(task));
-        break;
-    case TaskPriority::Normal:
-        q_normal_->push(std::move(task));
-        break;
-    default:
+    if (static_cast<size_t>(priority) >= queues_.size()) {
         throw std::invalid_argument(std::format("unknown priority: {}", static_cast<int>(priority)));
     }
+    queues_[static_cast<size_t>(priority)]->push(task);
+
     not_empty_.notify_one();
 }
 
@@ -50,8 +43,13 @@ std::optional<Task> PriorityQueue::pop() {
     std::optional<Task> result;
 
     not_empty_.wait(lock, [&] {
-        return (result = q_high_->try_pop()).has_value() || (result = q_normal_->try_pop()).has_value() ||
-               !active_.load(std::memory_order_acquire);
+        for (QueuePtr &q : queues_) {
+            result = q->try_pop();
+            if (result.has_value()) {
+                return true;
+            }
+        }
+        return !active_.load(std::memory_order_acquire);
     });
 
     return result;
